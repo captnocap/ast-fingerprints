@@ -53,7 +53,7 @@ class Pool {
 	}
 }
 
-function normalize(input: RawInput) {
+function normalize(input: RawInput, minimal = false) {
 	const kinds = new Pool();
 	const strings = new Pool();
 	const modifiers = new Pool();
@@ -105,28 +105,45 @@ function normalize(input: RawInput) {
 			code: d.code,
 		}));
 
-		return {
+		const nodes: Record<string, unknown> = {
+			kind: nodeKind,
+			start: nodeStart,
+			end: nodeEnd,
+			children: nodeChildren,
+		};
+		if (!minimal) {
+			nodes.line = nodeLine;
+			nodes.col = nodeCol;
+			nodes.text = nodeText;
+			nodes.modifiers = nodeModifiers;
+			nodes.parent = nodeParent;
+		}
+		const out: Record<string, unknown> = {
 			id: i + 1,
 			path: relPath,
-			size: f.size,
-			lines: f.lineCount,
 			root,
 			count: nodeKind.length,
-			nodes: {
-				kind: nodeKind,
-				start: nodeStart,
-				end: nodeEnd,
-				line: nodeLine,
-				col: nodeCol,
-				text: nodeText,
-				modifiers: nodeModifiers,
-				children: nodeChildren,
-				parent: nodeParent,
-			},
-			diagnostics: diag,
+			nodes,
 		};
+		if (!minimal) {
+			out.size = f.size;
+			out.lines = f.lineCount;
+			out.diagnostics = diag;
+		}
+		return out;
 	});
 
+	if (minimal) {
+		return {
+			schemaVersion: 1,
+			tsVersion: input.tsVersion,
+			generatedAt: input.generatedAt,
+			root: input.root,
+			meta: input.meta ?? {},
+			pools: { kinds: kinds.values },
+			files,
+		};
+	}
 	return {
 		schemaVersion: 1,
 		tsVersion: input.tsVersion,
@@ -160,10 +177,12 @@ function normalize(input: RawInput) {
 }
 
 function main() {
-	const inPath = path.resolve(process.argv[2] ?? (() => { throw new Error('usage: normalize.ts <raw.json> [out.json]'); })());
-	const outPath = path.resolve(process.argv[3] ?? inPath.replace(/\.json$/, '.contract.json'));
+	const args = process.argv.slice(2).filter((a) => a !== '--minimal');
+	const minimal = process.argv.includes('--minimal');
+	const inPath = path.resolve(args[0] ?? (() => { throw new Error('usage: normalize.ts <raw.json> [out.json] [--minimal]'); })());
+	const outPath = path.resolve(args[1] ?? inPath.replace(/\.json$/, '.contract.json'));
 	const raw = JSON.parse(fs.readFileSync(inPath, 'utf8')) as RawInput;
-	const contract = normalize(raw);
+	const contract = normalize(raw, minimal);
 	fs.writeFileSync(outPath, JSON.stringify(contract));
 	const size = fs.statSync(outPath).size;
 	const p = contract.pools;

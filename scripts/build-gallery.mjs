@@ -73,31 +73,26 @@ function main() {
     });
 
     // Build remap tables from this contract's pools into the merged pools.
+    // Minimal contracts only have a kinds pool — handle the rest as optional.
     const kindMap = [0, ...c.pools.kinds.map(addKind)];
-    const strMap  = [0, ...c.pools.strings.map(addStr)];
-    const modMap  = [0, ...c.pools.modifiers.map(addMod)];
+    const strMap  = c.pools.strings    ? [0, ...c.pools.strings.map(addStr)]    : null;
+    const modMap  = c.pools.modifiers  ? [0, ...c.pools.modifiers.map(addMod)]  : null;
 
     for (const f of c.files) {
       if (!f.nodes) continue;
       const n = f.nodes;
-      const newFile = {
-        path: f.path,
-        repoId,
-        root: f.root,
-        count: f.count,
-        nodes: {
-          kind: remapIdArray(n.kind, kindMap),
-          start: n.start,
-          end: n.end,
-          line: n.line,
-          col: n.col,
-          text: remapIdArray(n.text, strMap),
-          modifiers: n.modifiers.map((m) => (m === 0 ? 0 : remapIdArray(m, modMap))),
-          children: n.children,
-          parent: n.parent,
-        },
+      const out = {
+        kind: remapIdArray(n.kind, kindMap),
+        start: n.start,
+        end: n.end,
+        children: n.children,
       };
-      merged.files.push(newFile);
+      if (n.line)     out.line   = n.line;
+      if (n.col)      out.col    = n.col;
+      if (n.text     && strMap) out.text     = remapIdArray(n.text, strMap);
+      if (n.modifiers && modMap) out.modifiers = n.modifiers.map((m) => (m === 0 ? 0 : remapIdArray(m, modMap)));
+      if (n.parent)   out.parent = n.parent;
+      merged.files.push({ path: f.path, repoId, root: f.root, count: f.count, nodes: out });
     }
   }
 

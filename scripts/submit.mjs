@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
 const MAX_REPO_BYTES = 200 * 1024 * 1024;  // 200MB clone cap — refuse giants
-const MAX_CONTRACT_BYTES = 10 * 1024 * 1024; // 10MB contract cap
+const MAX_CONTRACT_BYTES = 30 * 1024 * 1024; // 30MB minimal-contract cap
 
 function parseGithubUrl(url) {
   const m = url.match(/^https?:\/\/github\.com\/([^/\s]+)\/([^/\s#?]+?)(?:\.git)?\/?$/);
@@ -76,7 +76,7 @@ function main() {
     writeFileSync(rawPath, JSON.stringify(raw));
 
     console.error(`[submit] normalizing`);
-    execFileSync('npx', ['--prefix', join(ROOT, 'parser'), 'tsx', join(ROOT, 'parser/normalize.ts'), rawPath, contractPath],
+    execFileSync('npx', ['--prefix', join(ROOT, 'parser'), 'tsx', join(ROOT, 'parser/normalize.ts'), rawPath, contractPath, '--minimal'],
       { stdio: ['ignore', 'inherit', 'inherit'] });
 
     const cb = statSync(contractPath).size;
