@@ -189,8 +189,10 @@ function main() {
 	process.stderr.write(
 		`wrote ${outPath}\n` +
 		`  files: ${contract.files.length}\n` +
-		`  kinds: ${p.kinds.length}, strings: ${p.strings.length}, modifiers: ${p.modifiers.length}\n` +
-		`  size: ${(size / 1024 / 1024).toFixed(2)} MB\n`
+		`  kinds: ${p.kinds.length}` +
+		(p.strings ? `, strings: ${p.strings.length}` : '') +
+		(p.modifiers ? `, modifiers: ${p.modifiers.length}` : '') +
+		`\n  size: ${(size / 1024 / 1024).toFixed(2)} MB\n`
 	);
 }
 
