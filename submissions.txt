@@ -2,3 +2,4 @@
 # Add a new line in a pull request to submit a repo to the gallery; the
 # submit workflow will parse it and append the contract to gallery/.
 https://github.com/sindresorhus/ky
+https://github.com/captnocap/engaige
