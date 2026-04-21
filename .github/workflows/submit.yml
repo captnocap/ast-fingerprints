@@ -1,0 +1,59 @@
+# Runs whenever a PR touches submissions.txt. For each new line added in the
+# PR, clone that repo, parse it, normalize, and commit the resulting contract
+# into gallery/<owner>__<repo>.json on the PR branch. You then review + merge
+# the PR; the deploy workflow (main.yml) rebuilds the viewer on merge.
+name: submit
+on:
+  pull_request:
+    paths:
+      - 'submissions.txt'
+    types: [opened, synchronize]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Install parser deps
+        working-directory: parser
+        run: npm install
+
+      - name: Resolve newly-added submissions
+        id: diff
+        run: |
+          git fetch origin ${{ github.event.pull_request.base.ref }}
+          ADDED=$(git diff "origin/${{ github.event.pull_request.base.ref }}"...HEAD -- submissions.txt | grep -E '^\+[^+]' | sed 's/^+//' | grep -E '^https?://github.com/' || true)
+          echo "$ADDED" > /tmp/new-urls.txt
+          echo "count=$(wc -l < /tmp/new-urls.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Ingest each URL
+        if: steps.diff.outputs.count != '0'
+        run: |
+          while IFS= read -r url; do
+            [ -z "$url" ] && continue
+            echo "::group::submit $url"
+            node scripts/submit.mjs "$url"
+            echo "::endgroup::"
+          done < /tmp/new-urls.txt
+
+      - name: Commit generated contracts
+        if: steps.diff.outputs.count != '0'
+        run: |
+          git config user.name  "ts-parse-bot"
+          git config user.email "bot@example.com"
+          git add gallery/
+          if ! git diff --cached --quiet; then
+            git commit -m "gallery: ingest submissions"
+            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          fi

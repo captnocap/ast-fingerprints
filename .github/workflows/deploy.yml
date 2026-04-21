@@ -1,0 +1,54 @@
+# On merge to main (or manual dispatch), merge all gallery contracts, rebuild
+# the love.js viewer with the combined contract baked in, and publish to
+# GitHub Pages.
+name: deploy
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'gallery/**'
+      - 'viewer-love/**'
+      - 'scripts/build-gallery.mjs'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Merge gallery into bundled contract
+        run: node scripts/build-gallery.mjs
+
+      - name: Package .love + love.js
+        working-directory: viewer-love
+        run: |
+          sudo apt-get update && sudo apt-get install -y zip
+          zip -rq /tmp/game.love . -x "dist/*" "*.love"
+          npx --yes love.js /tmp/game.love dist -t "AST Fingerprints" -m 134217728 -c
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: viewer-love/dist
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

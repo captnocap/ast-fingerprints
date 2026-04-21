@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.love
+# excluded test fixtures / scratch artifacts (not part of this project)
+/bulletproof-react
+/hermes-test
+/ky
+/proof
+*-ast.json
+/react-vite-contract.json
+/viewer/zig-out
+viewer/demo.gif
